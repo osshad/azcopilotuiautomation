@@ -1,0 +1,4 @@
+selenium
+bs4
+lxml
+webdriver-manager==4.0.0
