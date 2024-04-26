@@ -86,7 +86,7 @@ def sendMessage(messageString):
         )
         # Input the message
         textInput.send_keys(messageString)
-        time.sleep(2)
+        # time.sleep(2)
         # Press Enter to send
         textInput.send_keys(Keys.RETURN)
         time.sleep(15)
@@ -104,7 +104,7 @@ def refresh_and_switch():
     moveToIframe()
 
 
-def readResponse(old_response=None):
+def readResponse():
     try:
         # Wait for all response elements to be present
         responses = WebDriverWait(browser, 10).until(
@@ -122,16 +122,15 @@ def readResponse(old_response=None):
         # Extract the text from the response
         text = response.text
         print(text)
-        return text, response
+        return text
     except TimeoutException:
         print("Timed out waiting for response")
-        return None, None
+        return None
 
 
 def requestRunner(all_messages, handlername, category):
     batch_size = 9
     results = []
-    old_response = None
     for i in range(len(all_messages)):
         if i % batch_size == 0:
             if i > 0:
@@ -142,16 +141,16 @@ def requestRunner(all_messages, handlername, category):
                 moveToIframe()
         time.sleep(2)
         sendMessage(all_messages[i])
-        time.sleep(5)
-        answer, old_response = readResponse(old_response)
+        # time.sleep(5)
+        answer = readResponse()
         if answer is not None:
             results.append([all_messages[i], answer])
             write_array_to_csv(results, f"{handlername}_{category}.csv")
-            if "we can help you diagnose and solve problems".lower() in answer.lower():
-                print("text is present.")
+            if not "sorry, i can't assist with that." in answer.lower():
+                print("handler was triggered.")
                 refresh_and_switch()
             else:
-                print("text is not present.")
+                print("handler was not triggered.")
         else:
             print(f"No response received for message: {all_messages[i]}")
         time.sleep(2)
