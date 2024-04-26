@@ -104,30 +104,34 @@ def refresh_and_switch():
     moveToIframe()
 
 
-def readResponse():
+def readResponse(old_response=None):
     try:
-        # Wait for the response to be present
-        response = WebDriverWait(browser, 10).until(
-            EC.presence_of_element_located(
+        # Wait for all response elements to be present
+        responses = WebDriverWait(browser, 10).until(
+            EC.presence_of_all_elements_located(
                 (
                     By.XPATH,
-                    '//div[contains(@class, "fai-CopilotMessage fai-OutputCard")]//p',
+                    '//div[contains(@class, "fai-CopilotMessage fai-OutputCard")]//div[contains(@class, "ac-textBlock")]//p',
                 )
             )
         )
 
+        # Select the appropriate response
+        response = responses[-1]  # Select the last response
+
         # Extract the text from the response
         text = response.text
         print(text)
-        return text
+        return text, response
     except TimeoutException:
         print("Timed out waiting for response")
-        return None
+        return None, None
 
 
 def requestRunner(all_messages, handlername, category):
     batch_size = 9
     results = []
+    old_response = None
     for i in range(len(all_messages)):
         if i % batch_size == 0:
             if i > 0:
@@ -138,15 +142,18 @@ def requestRunner(all_messages, handlername, category):
                 moveToIframe()
         time.sleep(2)
         sendMessage(all_messages[i])
-        # time.sleep(5)
-        answer = readResponse()
-        results.append([all_messages[i], answer])
-        write_array_to_csv(results, f"{handlername}_{category}.csv")
-        if "we can help you diagnose and solve problems".lower() in answer.lower():
-            print("text is present.")
-            refresh_and_switch()
+        time.sleep(5)
+        answer, old_response = readResponse(old_response)
+        if answer is not None:
+            results.append([all_messages[i], answer])
+            write_array_to_csv(results, f"{handlername}_{category}.csv")
+            if "we can help you diagnose and solve problems".lower() in answer.lower():
+                print("text is present.")
+                refresh_and_switch()
+            else:
+                print("text is not present.")
         else:
-            print("text is not present.")
+            print(f"No response received for message: {all_messages[i]}")
         time.sleep(2)
     write_array_to_csv(results, f"{handlername}_{category}.csv")
     return results
