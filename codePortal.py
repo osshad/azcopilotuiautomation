@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import os, re, time, sys
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
+
+# from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.expected_conditions import element_to_be_clickable
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -38,7 +40,7 @@ def wait_and_get(elementId, by="id", exception_after_timeout=False):
             sys.exit()
 
 
-def clickButtonById(buttonId, timeout=2):
+def clickButtonById(buttonId, timeout=5):
     print("****-----------")
     button = wait_and_get(buttonId)
     print("******")
@@ -61,14 +63,17 @@ def cleanOutput(messageToClean):
 
 
 def moveToIframe():
-    iframe = wait_and_get("_react_frame_2", exception_after_timeout=True)
+    iframe = wait_and_get("_react_frame_1", exception_after_timeout=True)
     browser.switch_to.frame(iframe)
 
     # Wait for the "Not Now" button to be clickable
-    not_now_button = WebDriverWait(browser, 10).until(
-        EC.element_to_be_clickable((By.XPATH, '//button[text()="Not Now"]'))
-    )
-    not_now_button.click()
+    try:
+        not_now_button = WebDriverWait(browser, 10).until(
+            EC.element_to_be_clickable((By.XPATH, '//button[text()="Not Now"]'))
+        )
+        not_now_button.click()
+    except TimeoutException:
+        print("Not Now button not found")
 
 
 def sendMessage(messageString):
@@ -81,12 +86,22 @@ def sendMessage(messageString):
         )
         # Input the message
         textInput.send_keys(messageString)
-        time.sleep(0.5)
+        time.sleep(2)
         # Press Enter to send
         textInput.send_keys(Keys.RETURN)
+        time.sleep(15)
     except Exception as ex:
         pass
     return True
+
+
+def refresh_and_switch():
+    browser.switch_to.default_content()
+    browser.refresh()
+    time.sleep(5)
+    clickButtonById("_weave_e_51", 2)
+    time.sleep(2)
+    moveToIframe()
 
 
 def readResponse():
@@ -116,17 +131,22 @@ def requestRunner(all_messages, handlername, category):
     for i in range(len(all_messages)):
         if i % batch_size == 0:
             if i > 0:
-                browser.switch_to.default_content()
-                browser.refresh()
+                refresh_and_switch()
+            else:
+                clickButtonById("_weave_e_51", 2)
                 time.sleep(2)
-            clickButtonById("_weave_e_51")
-            time.sleep(2)
-            moveToIframe()
+                moveToIframe()
         time.sleep(2)
         sendMessage(all_messages[i])
+        # time.sleep(5)
         answer = readResponse()
         results.append([all_messages[i], answer])
         write_array_to_csv(results, f"{handlername}_{category}.csv")
+        if "we can help you diagnose and solve problems".lower() in answer.lower():
+            print("text is present.")
+            refresh_and_switch()
+        else:
+            print("text is not present.")
         time.sleep(2)
     write_array_to_csv(results, f"{handlername}_{category}.csv")
     return results
